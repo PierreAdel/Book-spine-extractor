@@ -201,18 +201,29 @@ class TextSegmenter:
 
             self.gray_otsu[box.up:box.bottom, box.left:box.right] = cv2.threshold(gray_roi, 0, 255,
                                                                             cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
-            average_border_mean = np.mean(self.gray_otsu[box.up:box.up + 1, box.left:box.right])
-            average_border_mean += np.mean(self.gray_otsu[box.bottom:box.bottom + 1, box.left:box.right])
-            average_border_mean += np.mean(self.gray_otsu[box.up:box.bottom, box.left:box.left + 1])
-            average_border_mean += np.mean(self.gray_otsu[box.up:box.bottom, box.right:box.right + 1])
-            average_border_mean /= 4
-            if average_border_mean > 60:
+
+            inside_mask = edges3[box.up:box.bottom, box.left:box.right] & self.gray[box.up:box.bottom, box.left:box.right]
+            mean_inside = np.true_divide(inside_mask.sum(), (inside_mask != 0).sum())
+            mean_outside = np.mean(self.gray[max(box.up - 8, 0):box.up, box.left:box.right])
+            if mean_inside < mean_outside:
                 self.gray_otsu[box.up:box.bottom, box.left:box.right] = \
                     255 - self.gray_otsu[box.up:box.bottom, box.left:box.right]
+            # print(f"inside is {mean_inside}, outside is {mean_outside}")
+            cv2.imshow('edges_bounded', image)
+            # cv2.waitKey()
+            # average_border_mean = np.mean(self.gray_otsu[box.up:box.up + 1, box.left:box.right])
+            # average_border_mean += np.mean(self.gray_otsu[box.bottom:box.bottom + 1, box.left:box.right])
+            # average_border_mean += np.mean(self.gray_otsu[box.up:box.bottom, box.left:box.left + 1])
+            # average_border_mean += np.mean(self.gray_otsu[box.up:box.bottom, box.right:box.right + 1])
+            # average_border_mean /= 4
+            # if average_border_mean > 60:
+            #     self.gray_otsu[box.up:box.bottom, box.left:box.right] = \
+            #         255 - self.gray_otsu[box.up:box.bottom, box.left:box.right]
 
         # self.gray_otsu = 255 - self.gray_otsu
         self.gray_chen = cv2.medianBlur(self.gray_chen, 3)
         self.gray_otsu = cv2.medianBlur(self.gray_otsu, 3)
+        # self.gray_otsu = cv2.GaussianBlur(self.gray_otsu, (3, 3), 3)
         cv2.imshow('gray_chen', self.gray_chen)
         cv2.imshow('gray_otsu', self.gray_otsu)
         cv2.imshow('edges_bounded', image)
