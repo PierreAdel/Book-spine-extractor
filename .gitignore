@@ -122,3 +122,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+SpineClassifier/.idea/misc.xml
+
+SpineClassifier/.idea/SpineClassifer.iml
+
+*.iml
