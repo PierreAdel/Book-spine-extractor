@@ -150,8 +150,17 @@ class TextSegmenter:
         edges3 = cv2.threshold(edges2, 160, 255,
                          cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
         cv2.imshow('edges3', edges3)
+        # Taking a matrix of size 5 as the kernel
+        kernel = np.ones((2, 2), np.uint8)
+        edgesmorph = cv2.morphologyEx(edges3, cv2.MORPH_CLOSE, kernel)
+        cv2.imshow('edgesmorph', edgesmorph)
+        edgeblur = cv2.GaussianBlur(edges2, (3, 3), 3)
+        edgeblur = cv2.threshold(edgeblur, 220, 255,
+                         cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+        cv2.imshow('edgeblur', edgeblur)
         # edges = cv2.threshold(cv2.Canny(edges, 20, 80), 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
         # cv2.imshow('edges2', edges)
+        edges3 =edgeblur
         num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(edges3, 8, cv2.CV_32S)
 
         # for index, (left, up, wid, height, area) in enumerate(stats):
