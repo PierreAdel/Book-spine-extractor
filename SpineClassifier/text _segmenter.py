@@ -8,6 +8,7 @@ IMAGE_PATH = 'images/'
 NORMAL_TEXT_PATH = IMAGE_PATH + 'normal_text/'
 SHELVES_PATH = IMAGE_PATH + 'normal_text/'
 SPINES_PATH = IMAGE_PATH + 'spines/'
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 
 class BoundingBoxWrapper:
@@ -74,7 +75,7 @@ class BoundingBox:
         """
         returns true if self is inside the stored box
         """
-        if self.intersection_area(stored_box) > 0.7 * self.area:
+        if self.intersection_area(stored_box) > 0.48 * self.area:
             return True
         else:
             return False
@@ -136,7 +137,18 @@ class TextSegmenter:
         r = image[:, :, 2]
         edges = thresh_edges(b) | thresh_edges(r) | thresh_edges(g)
         cv2.imshow('edges', edges)
-        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(edges, 8, cv2.CV_32S)
+        cv2.imshow('edgesr', thresh_edges(r))
+        cv2.imshow('edgesg', thresh_edges(g))
+        cv2.imshow('edgesb', thresh_edges(b))
+        edges2 = thresh_edges(b) / 3 + thresh_edges(r) / 3 + thresh_edges(g) / 3
+        cv2.imshow('edges2', edges2)
+        edges2 = edges2.astype('uint8')
+        edges3 = cv2.threshold(edges2, 160, 255,
+                         cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+        cv2.imshow('edges3', edges3)
+        # edges = cv2.threshold(cv2.Canny(edges, 20, 80), 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+        # cv2.imshow('edges2', edges)
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(edges3, 8, cv2.CV_32S)
 
         # for index, (left, up, wid, height, area) in enumerate(stats):
         #     if wid * height > self.image_area * 0.15:
@@ -226,7 +238,7 @@ def blur(im):
 
 
 def canny(im):
-    return cv2.Canny((im), 60, 190)
+    return cv2.Canny(im, 60, 190)
 
 
 def thresh_edges(im):
@@ -235,7 +247,7 @@ def thresh_edges(im):
 
 
 if __name__ == "__main__":
-    for i in range(16):
+    for i in range(19):
         cv2.destroyAllWindows()
         img = cv2.imread(SPINES_PATH + str(i) + '.jpg')
         segmenter = TextSegmenter(img)
