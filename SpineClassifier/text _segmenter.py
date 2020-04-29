@@ -69,8 +69,8 @@ class BoundingBox:
     def intersection_area(self, rec):
         dx = min(self.right, rec.right) - max(self.left, rec.left)
         dy = min(self.bottom, rec.bottom) - max(self.up, rec.up)
-        if (dx>=0) and (dy>=0):
-            return dx*dy
+        if (dx >= 0) and (dy >= 0):
+            return dx * dy
         return 0
 
     # todo change inside to use inclosed area % from total area instead of pure bounds
@@ -148,7 +148,7 @@ class TextSegmenter:
         cv2.imshow('edges2', edges2)
         edges2 = edges2.astype('uint8')
         edges3 = cv2.threshold(edges2, 160, 255,
-                         cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+                               cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
         cv2.imshow('edges3', edges3)
         # Taking a matrix of size 5 as the kernel
         kernel = np.ones((2, 2), np.uint8)
@@ -156,11 +156,11 @@ class TextSegmenter:
         cv2.imshow('edgesmorph', edgesmorph)
         edgeblur = cv2.GaussianBlur(edges2, (3, 3), 3)
         edgeblur = cv2.threshold(edgeblur, 220, 255,
-                         cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+                                 cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
         cv2.imshow('edgeblur', edgeblur)
         # edges = cv2.threshold(cv2.Canny(edges, 20, 80), 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
         # cv2.imshow('edges2', edges)
-        edges3 =edgeblur
+        edges3 = edges
         num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(edges3, 8, cv2.CV_32S)
 
         # for index, (left, up, wid, height, area) in enumerate(stats):
@@ -206,14 +206,16 @@ class TextSegmenter:
             labeled_mean_intensity = np.sum(labeled_gray_roi) / true_count
 
             self.gray_chen[box.up:box.bottom, box.left:box.right] = cv2.threshold(gray_roi, labeled_mean_intensity, 255,
-                                                                            cv2.THRESH_BINARY)[1]
+                                                                                  cv2.THRESH_BINARY)[1]
 
             self.gray_otsu[box.up:box.bottom, box.left:box.right] = cv2.threshold(gray_roi, 0, 255,
-                                                                            cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+                                                                                  cv2.THRESH_BINARY | cv2.THRESH_OTSU)[
+                1]
 
-            inside_mask = edges3[box.up:box.bottom, box.left:box.right] & self.gray[box.up:box.bottom, box.left:box.right]
+            inside_mask = edges3[box.up:box.bottom, box.left:box.right] & self.gray[box.up:box.bottom,
+                                                                          box.left:box.right]
             mean_inside = np.true_divide(inside_mask.sum(), (inside_mask != 0).sum())
-            mean_outside = np.mean(self.gray[max(box.up - 8, 0):box.up, box.left:box.right])
+            mean_outside = np.mean(self.gray[max(box.up - 8, 0):max(box.up, 1), box.left:box.right])
             if mean_inside < mean_outside:
                 self.gray_otsu[box.up:box.bottom, box.left:box.right] = \
                     255 - self.gray_otsu[box.up:box.bottom, box.left:box.right]
@@ -245,8 +247,10 @@ class TextSegmenter:
         :return:
             text included in image
         """
-        return "chen *************\n" + pytesseract.image_to_string(self.gray_chen) + \
-               "\notsu *************\n" + pytesseract.image_to_string(self.gray_otsu)
+        config = '-c tessedit_char_whitelist=\ 01234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+        return "chen *************\n" + pytesseract.image_to_string(cv2.bitwise_not(self.gray_chen)) + \
+               "\notsu *************\n" + pytesseract.image_to_string(cv2.bitwise_not(self.gray_otsu), lang='eng',
+                                                                      config=config)
 
 
 def resize_image(im):
