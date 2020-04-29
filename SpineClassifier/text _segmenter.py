@@ -36,12 +36,13 @@ class BoundingBoxWrapper:
                 self.boxes.append(box)
 
     def get_boxes(self):
-        return self.boxes
+        return sorted(self.boxes, key=lambda box: box.area, reverse=True)
 
 
 class BoundingBox:
 
     def __init__(self, stat):
+        self.intersected_area = 0
         self.label, (self.left, self.up, self.width, self.height, area) = stat
 
         self.area = self.width * self.height
@@ -55,6 +56,8 @@ class BoundingBox:
 
     def is_valid(self, img_shape):
         if self.width * self.height > img_shape[0] * img_shape[1] * 0.15:
+            return False
+        elif self.height > img_shape[0] * 0.82:
             return False
         elif (0.2 < self.width / self.height < 5 and
               max(self.height, self.width) > 0.05 * img_shape[0]):
@@ -75,7 +78,8 @@ class BoundingBox:
         """
         returns true if self is inside the stored box
         """
-        if self.intersection_area(stored_box) > 0.48 * self.area:
+        self.intersected_area += self.intersection_area(stored_box)
+        if self.intersected_area > 0.5 * self.area:
             return True
         else:
             return False
@@ -247,7 +251,7 @@ def thresh_edges(im):
 
 
 if __name__ == "__main__":
-    for i in range(19):
+    for i in range(17):
         cv2.destroyAllWindows()
         img = cv2.imread(SPINES_PATH + str(i) + '.jpg')
         segmenter = TextSegmenter(img)
@@ -256,3 +260,7 @@ if __name__ == "__main__":
 # todo fix bounding boxes
 #   todo mawdoo3 el inner/ nesting
 # todo fix inverting the colors if necessary
+# todo check the mode of the pixel above and below letter
+# todo sort boxes by size before detecting if its inside another one
+# todo idea: fill connected component
+# todo combine boxes?
