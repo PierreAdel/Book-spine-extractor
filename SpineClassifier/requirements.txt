@@ -1,2 +1,8 @@
 opencv-python
 pytesseract
+beautifulsoup4
+google
+google-search
+urllib3
+Goodreads
+python-dotenv
