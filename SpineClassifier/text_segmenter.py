@@ -1,14 +1,15 @@
+#!/usr/bin/python3.7
 from __future__ import annotations
 import cv2
 import pytesseract
-import numpy as np
 from typing import Type
+import numpy as np
 
 IMAGE_PATH = 'images/'
 NORMAL_TEXT_PATH = IMAGE_PATH + 'normal_text/'
 SHELVES_PATH = IMAGE_PATH + 'normal_text/'
 SPINES_PATH = IMAGE_PATH + 'spines/'
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 
 class BoundingBoxWrapper:
@@ -182,15 +183,14 @@ from googlesearch import search
 from goodreads import client
 import re
 from dotenv import load_dotenv
-
 load_dotenv()
 import os
 
-KEY = os.getenv("goodreads_key")
-gc = client.GoodreadsClient(KEY, "")
-
 
 def goodreads_request(text, text2, last_trial=False):
+    KEY = os.environ["goodreads_key"]
+    gc = client.GoodreadsClient(KEY, "")
+    book_json = {'found' : False}
     try:
         try:
             book = gc.search_books(text)[0]  # slows down performance heavily, limited to 1 request / sec
@@ -210,7 +210,8 @@ def goodreads_request(text, text2, last_trial=False):
             'title': book.title,
             'author': book.authors[0].name,
             'average_rating': book.average_rating,
-            'url': goodreads_url_prefix + book.gid
+            'url': goodreads_url_prefix + book.gid,
+            'found' : True
         }
         print(book_json)
     except StopIteration:
@@ -218,16 +219,11 @@ def goodreads_request(text, text2, last_trial=False):
             site = f'not found \n, query="{text}"'
             print(site)
         else:
-            goodreads_request(text2, text, True)
+            return goodreads_request(text2, text, True)
+    return book_json
 
 
 if __name__ == "__main__":
-
-    gamma = 0.5
-    inverse_gamma = 1 / gamma
-
-    look_up_table = np.zeros(256, dtype="uint8")
-
     for i in range(17):
         cv2.destroyAllWindows()
         img = cv2.imread(SPINES_PATH + str(i) + '.jpg')
@@ -235,3 +231,14 @@ if __name__ == "__main__":
         detected_text = segmenter.get_text()
         detected_text_with_median = segmenter.get_text_with_median()
         goodreads_request(detected_text, detected_text_with_median)
+
+
+def process_spine(filestr):
+        #convert string data to numpy array
+        npimg = np.fromstring(filestr, np.uint8)
+        # convert numpy array to image
+        img = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
+        segmenter = TextSegmenter(img)
+        detected_text = segmenter.get_text()
+        detected_text_with_median = segmenter.get_text_with_median()
+        return goodreads_request(detected_text, detected_text_with_median)
