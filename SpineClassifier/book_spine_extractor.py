@@ -1,7 +1,9 @@
 import cv2
 import numpy as np
+import statistics
+import imutils
+import math
 SHELVES_PATH = 'images/shelves/'
-
 
 class SpineExtractor:
 
@@ -26,6 +28,7 @@ class SpineExtractor:
         lines = fld.detect(gray)
         mask = fld.drawSegments(mask, lines)
         cv2.imshow("LSD", mask)
+
         for i in range(len(lines)):
             for x1, y1, x2, y2 in lines[i]:
                 line = [x1, y1, x2, y2, (x1 + x2) / 2,
@@ -40,11 +43,12 @@ class SpineExtractor:
         for index in range(len(filtered_lines)):
             i = 0
             filtered_lines[index][-1] += filtered_lines[index][-1]
-            while index + i < len(filtered_lines) and filtered_lines[index + i][4] - filtered_lines[index][4] <= 15 :
+            while index + i < len(filtered_lines) and filtered_lines[index + i][4] - filtered_lines[index][4] <= 15:
                 filtered_lines[index][-1] += filtered_lines[index + i][-1]
                 filtered_lines[index + i][-1] += filtered_lines[index][-1]
                 i += 1
-            mask2 = cv2.putText(mask2, str(int(filtered_lines[index][-1])), (filtered_lines[index][0], filtered_lines[index][1]),
+            mask2 = cv2.putText(mask2, str(int(filtered_lines[index][-1])),
+                                (filtered_lines[index][0], filtered_lines[index][1]),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1)
 
         cv2.imshow("strengths", mask2)
@@ -77,7 +81,6 @@ class SpineExtractor:
         cv2.imshow('filter1', self.image)
         cv2.waitKey()
 
-
 def resize_image(im):
     max_height = 800
     if im.shape[0] > max_height:
@@ -85,16 +88,44 @@ def resize_image(im):
         im = cv2.resize(im, shape_)
     return im
 
+def rotate_image(image):
+
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    fld = cv2.ximgproc.createFastLineDetector()
+    lines = fld.detect(gray)
+
+    # in this piece of code we am trying to rotate the image so that the books are always as vertical
+    # method: by filtering the taller lines which represent the length of a book while discarding the shorter lines which are letters or noise
+    # then getting the median of the taller lines and their angle and rotate the image by this angle
+    #lengtharr = []
+    anglearr = []
+    for i in range(len(lines)):
+        for x1, y1, x2, y2 in lines[i]:
+            length = int(math.sqrt(abs(x2 - x1) ** 2 + abs(y2 - y1) ** 2))
+            # print(length)
+            #lengtharr.append(length)
+            if length > 250:
+                slope = (y2 - y1) / (x2 - x1)
+                angle = math.degrees(math.atan(slope))
+                anglearr.append(angle)
+
+    ang_median = statistics.median(anglearr)
+    #print("The photo is tilted by: " + str(ang_median) + " degrees")
+    rotation_angle = ang_median + 90
+    image = imutils.rotate(image, rotation_angle)
+
+    #cv2.imshow("rotation", image)
+    #cv2.waitKey()
+    print("end rotation")
+    return image
+
 
 if __name__ == "__main__":
     for i in range(15):
         cv2.destroyAllWindows()
         img = cv2.imread(SHELVES_PATH + str(i) + '.jpg')
+        img = rotate_image(img)
         img = resize_image(img)
-        # cv2.imshow('dsads', img)
         extractor = SpineExtractor(img)
         extractor.extract()
         spines = extractor.get_spines()
-
-
-
