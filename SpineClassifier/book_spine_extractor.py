@@ -18,10 +18,11 @@ class SpineExtractor:
 
     def extract(self):
         gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+        mask = np.zeros(gray.shape)
+        mask2 = np.zeros(self.image.shape)
 
         edges = cv2.Canny(gray, 70, 210, apertureSize=3)
         cv2.imshow('edges1', edges)
-        kernel = np.ones((1, 2), np.uint8)
 
         # edges = cv2.dilate(edges, kernel, iterations=1)
         # edges = cv2.GaussianBlur(dilate, (3, 3), 3)
@@ -30,20 +31,28 @@ class SpineExtractor:
         cv2.imshow('edges2', edges)
         # cv2.waitKey()
         # lines = cv2.HoughLines(edges, 1, np.pi / 180, 200)
-        lines = cv2.HoughLinesP(edges, rho=1, theta=1 * np.pi / 180, threshold=150,
-                                minLineLength=int(self.image.shape[0] / 4), maxLineGap=20)
         my_lines = []
+        fld = cv2.ximgproc.createFastLineDetector()
+        lines = fld.detect(gray)
+        mask = fld.drawSegments(mask, lines)
+        cv2.imshow("LSD", mask)
         for i in range(len(lines)):
             for x1, y1, x2, y2 in lines[i]:
                 line = (x1, y1, x2, y2, (x1 + x2) / 2,
                         abs(np.sin(np.arctan((y2 - y1) / max((x2 - x1), 0.01)))))
-                if line[-1] > 0.96 :  # a slant 15 deg & length > 0.25 height
+                if line[-1] > 0.96 and (y2 - y1) > 0.04 * self.image.shape[0]:  # a slant 15 deg & length > 0.25 height
                     my_lines.append(line)
-                    cv2.line(self.image, (x1, y1), (x2, y2), (0, 0, 255), 1)
-            cv2.imshow('dsads', self.image)
+                    cv2.line(self.image, (x1, y1), (x2, y2), (0, 255, 255), 1)
+                    cv2.line(mask2, (x1, y1), (x2, y2), (0, 255, 255), 1)
+            cv2.imshow('filter1', self.image)
+        # np.rad2deg(np.arctan((y2 - y1) / (x2 - x1)))  # angle
+        kernel = np.ones((1, 2), np.uint8)
+        mask2 = cv2.dilate(mask2, kernel, iterations=1)
+        cv2.imshow("LSD2", mask2)
+        # lines = fld.detect(mask2)
+        # mask3 = fld.drawSegments(mask2, lines)
+        # cv2.imshow("LSD", mask3)
         cv2.waitKey()
-        # # np.rad2deg(np.arctan((y2 - y1) / (x2 - x1)))  # angle
-
         filtered_lines_by_x = []
         close_lines_set = []
         my_lines.sort(key=lambda line: line[4])  # sort by avg x
@@ -60,18 +69,18 @@ class SpineExtractor:
                 last_x = avg_x
                 close_lines_set = []
             # cv2.waitKey()
-        cv2.imshow('dsads', self.image)
+        cv2.imshow('filter2', self.image)
         cv2.waitKey()
 
-        # my_lines.sort(key=lambda line: (line[3] - line[1]))  # sort by length
-        for line in filtered_lines_by_x:
-            x1, y1, x2, y2, avg_x, sine, strength = line
-            # if y1 - y2 < self.image.shape[0] / 3:
-            #     continue
-            cv2.line(self.image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+        # # my_lines.sort(key=lambda line: (line[3] - line[1]))  # sort by length
+        # for line in filtered_lines_by_x:
+        #     x1, y1, x2, y2, avg_x, sine, strength = line
+        #     # if y1 - y2 < self.image.shape[0] / 3:
+        #     #     continue
+        #     cv2.line(self.image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+        # # cv2.waitKey()
+        #     cv2.imshow('dsads', self.image)
         # cv2.waitKey()
-            cv2.imshow('dsads', self.image)
-        cv2.waitKey()
 
     # def extract(self):
     #     gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
@@ -91,7 +100,7 @@ class SpineExtractor:
 
 
 def resize_image(im):
-    max_height = 1000
+    max_height = 800
     if im.shape[0] > max_height:
         shape_ = (int(im.shape[1] * max_height / im.shape[0]), max_height)
         im = cv2.resize(im, shape_)
