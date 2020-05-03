@@ -5,18 +5,12 @@ import imutils
 import math
 SHELVES_PATH = 'images/shelves/'
 
+
 class SpineExtractor:
 
     def __init__(self, image):
         self.image = image
-
-    def get_spines(self):
-        """
-
-        :return:
-            list of spines
-        """
-        return 0
+        self.spines = []
 
     def extract(self):
         gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
@@ -65,36 +59,48 @@ class SpineExtractor:
                 x1, y1, x2, y2, avg_x, sine, strength = max_line
                 filtered_lines_by_x.append(max_line)
                 cv2.line(mask2, (x1, y1), (x2, y2), (255, 0, 0), 1)
-                cv2.line(self.image, (x1, y1), (x2, y2), (0, 255, 0), 3)
+                cv2.line(self.image, (x1, y1), (x2, y2), (0, 255, 0), 1)
                 max_line = line
             last_x = avg_x
 
-        # if max_line:
         filtered_lines_by_x.append(max_line)
         x1, y1, x2, y2, avg_x, sine, strength = max_line
         cv2.line(mask2, (x1, y1), (x2, y2), (255, 0, 0), 1)
-        cv2.line(self.image, (x1, y1), (x2, y2), (0, 255, 0), 3)
+        cv2.line(self.image, (x1, y1), (x2, y2), (0, 255, 0), 1)
 
-        # cv2.waitKey()
+        last_line = filtered_lines_by_x[0]
+        x_cuts = [0]
+        current_x_cut = 0
+        num_lines = 0
+        for line in filtered_lines_by_x:
+            x1, y1, x2, y2, avg_x, sine, strength = line
+            if line[4] - last_line[4] < self.image.shape[1] / 30:
+                current_x_cut += line[4]
+                num_lines += 1
+            else:
+                x_cuts.append(int(current_x_cut / max(num_lines, 1)))
+                num_lines = 1
+                current_x_cut = line[4]
+            last_line = line
+        x_cuts.append(int(current_x_cut / max(num_lines, 1)))
+        x_cuts.append(self.image.shape[1] - 1)  # todo add this to filtered lines
+
+        for cut in x_cuts:
+            cv2.line(self.image, (cut, 0), (cut, self.image.shape[0] - 1), (0, 0, 255), 1)
+
+        for cut_index in range(1, len(x_cuts)):
+            spine = self.image[0:self.image.shape[0] - 1, x_cuts[cut_index - 1]: x_cuts[cut_index]]
+            # spine = imutils.rotate(spine, 90)
+            spine = cv2.rotate(spine, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            self.spines.append(spine)
+
+        x = 0
+        for spine in self.spines:
+            cv2.imwrite(f"detected_spines/spine{x}.jpg", spine)
+            x += 1
         cv2.imshow("strengths_filtered", mask2)
         cv2.imshow('filter1', self.image)
         cv2.waitKey()
-
-    # def extract(self):
-    #     gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
-    #     edges = cv2.Canny(gray, 50, 200, apertureSize=3)
-    #     # cv2.namedWindow('edges', cv2.WINDOW_NORMAL)
-    #     cv2.imshow('edges', edges)
-    #     # cv2.waitKey()
-    #     lines = cv2.HoughLines(edges, 1, np.pi / 180, 200)
-    #     lines = cv2.HoughLinesP(edges, rho=1, theta=1 * np.pi / 180, threshold=100,
-    #                             minLineLength=100, maxLineGap=20)
-    #
-    #     for i in range(len(lines)):
-    #         for x1, y1, x2, y2 in lines[i]:
-    #             cv2.line(self.image, (x1, y1), (x2, y2), (0, 0, 255), 2)
-    #         cv2.imshow('dsads', self.image)
-    #     cv2.waitKey()
 
 
 def resize_image(im):
@@ -103,6 +109,7 @@ def resize_image(im):
         shape_ = (int(im.shape[1] * max_height / im.shape[0]), max_height)
         im = cv2.resize(im, shape_)
     return im
+
 
 def rotate_image(image):
 
@@ -120,19 +127,23 @@ def rotate_image(image):
             length = int(math.sqrt(abs(x2 - x1) ** 2 + abs(y2 - y1) ** 2))
             # print(length)
             #lengtharr.append(length)
-            if length > 250:
+            if length > gray.shape[0] / 5:
                 slope = (y2 - y1) / (x2 - x1)
                 angle = math.degrees(math.atan(slope))
                 anglearr.append(angle)
 
     ang_median = statistics.median(anglearr)
     #print("The photo is tilted by: " + str(ang_median) + " degrees")
-    rotation_angle = ang_median + 90
+    if ang_median >= 0:
+        rotation_angle = ang_median - 90
+    else:
+        rotation_angle = ang_median + 90
     image = imutils.rotate(image, rotation_angle)
 
     #cv2.imshow("rotation", image)
     #cv2.waitKey()
     print("end rotation")
+    print(ang_median)
     return image
 
 
@@ -140,8 +151,7 @@ if __name__ == "__main__":
     for i in range(15):
         cv2.destroyAllWindows()
         img = cv2.imread(SHELVES_PATH + str(i) + '.jpg')
-        img = rotate_image(img)
+        # img = rotate_image(img)
         img = resize_image(img)
         extractor = SpineExtractor(img)
         extractor.extract()
-        spines = extractor.get_spines()
