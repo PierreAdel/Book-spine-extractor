@@ -21,82 +21,61 @@ class SpineExtractor:
         mask = np.zeros(gray.shape)
         mask2 = np.zeros(self.image.shape)
 
-        edges = cv2.Canny(gray, 70, 210, apertureSize=3)
-        cv2.imshow('edges1', edges)
-
-        # edges = cv2.dilate(edges, kernel, iterations=1)
-        # edges = cv2.GaussianBlur(dilate, (3, 3), 3)
-
-        # cv2.namedWindow('edges', cv2.WINDOW_NORMAL)
-        cv2.imshow('edges2', edges)
-        # cv2.waitKey()
-        # lines = cv2.HoughLines(edges, 1, np.pi / 180, 200)
-        my_lines = []
+        filtered_lines = []
         fld = cv2.ximgproc.createFastLineDetector()
         lines = fld.detect(gray)
         mask = fld.drawSegments(mask, lines)
         cv2.imshow("LSD", mask)
         for i in range(len(lines)):
             for x1, y1, x2, y2 in lines[i]:
-                line = (x1, y1, x2, y2, (x1 + x2) / 2,
-                        abs(np.sin(np.arctan((y2 - y1) / max((x2 - x1), 0.01)))))
+                line = [x1, y1, x2, y2, (x1 + x2) / 2,
+                        abs(np.sin(np.arctan((y2 - y1) / max((x2 - x1), 0.01))))]
                 if line[-1] > 0.96 and (y2 - y1) > 0.04 * self.image.shape[0]:  # a slant 15 deg & length > 0.25 height
-                    my_lines.append(line)
+                    filtered_lines.append([*line, line[-1] * (y2 - y1)])
                     cv2.line(self.image, (x1, y1), (x2, y2), (0, 255, 255), 1)
                     cv2.line(mask2, (x1, y1), (x2, y2), (0, 255, 255), 1)
             cv2.imshow('filter1', self.image)
-        # np.rad2deg(np.arctan((y2 - y1) / (x2 - x1)))  # angle
-        kernel = np.ones((1, 2), np.uint8)
-        mask2 = cv2.dilate(mask2, kernel, iterations=1)
-        cv2.imshow("LSD2", mask2)
-        # lines = fld.detect(mask2)
-        # mask3 = fld.drawSegments(mask2, lines)
-        # cv2.imshow("LSD", mask3)
-        cv2.waitKey()
+
+        filtered_lines.sort(key=lambda line: line[4])
+        for index in range(len(filtered_lines)):
+            i = 0
+            filtered_lines[index][-1] += filtered_lines[index][-1]
+            while index + i < len(filtered_lines) and filtered_lines[index + i][4] - filtered_lines[index][4] <= 15 :
+                filtered_lines[index][-1] += filtered_lines[index + i][-1]
+                filtered_lines[index + i][-1] += filtered_lines[index][-1]
+                i += 1
+            mask2 = cv2.putText(mask2, str(int(filtered_lines[index][-1])), (filtered_lines[index][0], filtered_lines[index][1]),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1)
+
+        cv2.imshow("strengths", mask2)
+
         filtered_lines_by_x = []
-        close_lines_set = []
-        my_lines.sort(key=lambda line: line[4])  # sort by avg x
-        last_x = my_lines[0][4]
-        for line in my_lines:
-            x1, y1, x2, y2, avg_x, sine = line
-            if avg_x - last_x < 10 or not close_lines_set:
-                close_lines_set.append(line)
+        last_x = filtered_lines[0][4]
+        max_line = filtered_lines[0]
+        for line in filtered_lines:
+            _, y1, _, y2, avg_x, _, _ = line
+            if line[-1] < gray.shape[0] * 1.5 or y2 - y1 < 0.07 * gray.shape[0]:
+                continue
+            elif avg_x - last_x < 10:
+                max_line = line if line[-1] > max_line[-1] else max_line
             else:
-                close_lines_set.sort(key=lambda line: (line[3] - line[1]))  # sort by length
-                x1, y1, x2, y2, avg_x, sine = close_lines_set[0]
-                filtered_lines_by_x.append((*close_lines_set[0], sine * (y2 - y1)))
-                cv2.line(self.image, (x1, y1), (x2, y2), (0, 255, 0), 1)
-                last_x = avg_x
-                close_lines_set = []
-            # cv2.waitKey()
-        cv2.imshow('filter2', self.image)
-        cv2.waitKey()
+                x1, y1, x2, y2, avg_x, sine, strength = max_line
+                filtered_lines_by_x.append(max_line)
+                cv2.line(mask2, (x1, y1), (x2, y2), (255, 0, 0), 1)
+                cv2.line(self.image, (x1, y1), (x2, y2), (0, 255, 0), 3)
+                max_line = line
+            last_x = avg_x
 
-        # # my_lines.sort(key=lambda line: (line[3] - line[1]))  # sort by length
-        # for line in filtered_lines_by_x:
-        #     x1, y1, x2, y2, avg_x, sine, strength = line
-        #     # if y1 - y2 < self.image.shape[0] / 3:
-        #     #     continue
-        #     cv2.line(self.image, (x1, y1), (x2, y2), (0, 0, 255), 2)
-        # # cv2.waitKey()
-        #     cv2.imshow('dsads', self.image)
+        # if max_line:
+        filtered_lines_by_x.append(max_line)
+        x1, y1, x2, y2, avg_x, sine, strength = max_line
+        cv2.line(mask2, (x1, y1), (x2, y2), (255, 0, 0), 1)
+        cv2.line(self.image, (x1, y1), (x2, y2), (0, 255, 0), 3)
+
         # cv2.waitKey()
-
-    # def extract(self):
-    #     gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
-    #     edges = cv2.Canny(gray, 50, 200, apertureSize=3)
-    #     # cv2.namedWindow('edges', cv2.WINDOW_NORMAL)
-    #     cv2.imshow('edges', edges)
-    #     # cv2.waitKey()
-    #     lines = cv2.HoughLines(edges, 1, np.pi / 180, 200)
-    #     lines = cv2.HoughLinesP(edges, rho=1, theta=1 * np.pi / 180, threshold=100,
-    #                             minLineLength=100, maxLineGap=20)
-    #
-    #     for i in range(len(lines)):
-    #         for x1, y1, x2, y2 in lines[i]:
-    #             cv2.line(self.image, (x1, y1), (x2, y2), (0, 0, 255), 2)
-    #         cv2.imshow('dsads', self.image)
-    #     cv2.waitKey()
+        cv2.imshow("strengths_filtered", mask2)
+        cv2.imshow('filter1', self.image)
+        cv2.waitKey()
 
 
 def resize_image(im):
@@ -108,7 +87,7 @@ def resize_image(im):
 
 
 if __name__ == "__main__":
-    for i in range(5):
+    for i in range(15):
         cv2.destroyAllWindows()
         img = cv2.imread(SHELVES_PATH + str(i) + '.jpg')
         img = resize_image(img)
