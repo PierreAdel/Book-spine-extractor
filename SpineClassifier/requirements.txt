@@ -11,3 +11,4 @@ python-dotenv
 flask_restful
 werkzeug
 flask
+PySimpleGUI
