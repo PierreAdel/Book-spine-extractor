@@ -8,3 +8,6 @@ google-search
 urllib3
 Goodreads
 python-dotenv
+flask_restful
+werkzeug
+flask
