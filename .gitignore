@@ -128,3 +128,9 @@ SpineClassifier/.idea/misc.xml
 SpineClassifier/.idea/SpineClassifer.iml
 
 *.iml
+
+SpineClassifier/detected_spines/
+
+SpineClassifier/.idea/
+
+SpineClassifier/.google-cookie
