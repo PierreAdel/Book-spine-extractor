@@ -4,14 +4,16 @@ import cv2
 import pytesseract
 from typing import Type
 import numpy as np
+from goodreads.request import GoodreadsRequestException
 
 IMAGE_PATH = 'images/'
 NORMAL_TEXT_PATH = IMAGE_PATH + 'normal_text/'
 SHELVES_PATH = IMAGE_PATH + 'normal_text/'
-SPINES_PATH = IMAGE_PATH + 'spines/'
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# SPINES_PATH = IMAGE_PATH + 'spines/'
+SPINES_PATH = 'detected_spines/spine'
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
-
+img = None
 class BoundingBoxWrapper:
     def __init__(self, stats, img_shape):
         self.boxes = []
@@ -33,10 +35,9 @@ class BoundingBoxWrapper:
     def get_boxes(self):
         return sorted(self.boxes, key=lambda box: box.area, reverse=True)
 
-    def get_mask(self, edges, gray_img):
+    def get_mask(self, edges, gray_img, im):
         gray_mask = np.zeros(gray_img.shape, dtype=np.uint8)
         for box in self.get_boxes():
-            # cv2.rectangle(image, *box.rectangle_args)
             gray_roi = gray_img[box.up:box.bottom, box.left:box.right]
             gray_mask[box.up:box.bottom, box.left:box.right] = \
                 cv2.threshold(gray_roi, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
@@ -48,6 +49,11 @@ class BoundingBoxWrapper:
             if mean_inside < mean_outside:
                 gray_mask[box.up:box.bottom, box.left:box.right] = \
                     255 - gray_mask[box.up:box.bottom, box.left:box.right]
+            gray_mask2 = gray_mask.copy()
+            cv2.rectangle(im, *box.rectangle_args)
+
+        # cv2.imshow("gray_img", im)
+        # cv2.waitKey()
         return gray_mask
 
 
@@ -67,9 +73,9 @@ class BoundingBox:
     def is_valid(self, img_shape):
         if self.width * self.height > img_shape[0] * img_shape[1] * 0.15:
             return False
-        elif self.height > img_shape[0] * 0.82:
+        elif self.height > img_shape[0] * 0.84:
             return False
-        elif (0.2 < self.width / self.height < 5 and
+        elif (0.12 < self.width / self.height < 6 and
               max(self.height, self.width) > 0.05 * img_shape[0]):
             return True
         else:
@@ -106,6 +112,7 @@ class TextSegmenter:
 
     def __init__(self, im):
         self.image = resize_image(im)
+        # cv2.imshow("self.image", self.image)
         self.image_area = im.shape[0] * im.shape[1]
         self.gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
         self.gray_otsu = np.zeros(self.gray.shape, dtype=np.uint8)
@@ -120,7 +127,9 @@ class TextSegmenter:
         num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(edges3, 8, cv2.CV_32S)
 
         box_wrapper = BoundingBoxWrapper(stats, self.image.shape)
-        self.gray_otsu = box_wrapper.get_mask(edges3, self.gray)
+        self.gray_otsu = box_wrapper.get_mask(edges3, self.gray, self.image)
+        # cv2.imshow("self.gray_otsu", self.gray_otsu)
+
 
     def get_edges(self, image):
         b = image[:, :, 0]
@@ -136,6 +145,8 @@ class TextSegmenter:
         edgeblur = cv2.GaussianBlur(edges2, (3, 3), 3)
         edgeblur = cv2.threshold(edgeblur, 220, 255,
                                  cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+        # cv2.imshow("edges", edges)
+        # cv2.waitKey()
         return edges
 
     def recognize_text(self):
@@ -178,6 +189,7 @@ def thresh_edges(im):
 # todo idea: fill connected component -- cancelled
 # todo idea: increase contrast
 # todo combine boxes?
+# todo get average outside using dilation - real
 
 from googlesearch import search
 from goodreads import client
@@ -190,47 +202,59 @@ import os
 def goodreads_request(text, text2, last_trial=False):
     KEY = os.environ["goodreads_key"]
     gc = client.GoodreadsClient(KEY, "")
-    book_json = {'found' : False}
+    book_json = {'found' : False, "text": text}
     try:
         try:
             book = gc.search_books(text)[0]  # slows down performance heavily, limited to 1 request / sec
-        except TypeError:
+        except (TypeError, GoodreadsRequestException):
             book = None
         goodreads_url_prefix = "https://www.goodreads.com/book/show/"
         if book is None:
             gen = search(text + " " + goodreads_url_prefix, tld='com', lang='en', num=1,
-                         pause=0.25)
+                         pause=3)
             site = next(gen)
             if goodreads_url_prefix not in site:
                 site = next(search(text + " site:" + goodreads_url_prefix, tld='com', lang='en',
-                                   num=1, pause=0.25))
+                                   num=1, pause=3))
             id = re.search("[0-9]+", site).group()
             book = gc.book(id)
         book_json = {
+            'txt': text,
+            'txt2': text2,
             'title': book.title,
             'author': book.authors[0].name,
             'average_rating': book.average_rating,
             'url': goodreads_url_prefix + book.gid,
             'found' : True
         }
-        print(book_json)
+        # print(book_json)
     except StopIteration:
         if last_trial:
-            site = f'not found \n, query="{text}"'
+            site = f'not found \nquery="{text}"'
             print(site)
+            return {"error": "no book found", 'txt':'text2', 'title':''}
         else:
             return goodreads_request(text2, text, True)
     return book_json
 
 
 if __name__ == "__main__":
-    for i in range(17):
-        cv2.destroyAllWindows()
-        img = cv2.imread(SPINES_PATH + str(i) + '.jpg')
-        segmenter = TextSegmenter(img)
-        detected_text = segmenter.get_text()
-        detected_text_with_median = segmenter.get_text_with_median()
-        goodreads_request(detected_text, detected_text_with_median)
+    for root, dirs, files in os.walk('detected_spines/'):
+        for file in files:
+            cv2.destroyAllWindows()
+            img = cv2.imread(os.path.join(root, file))
+            segmenter = TextSegmenter(img)
+            detected_text = segmenter.get_text()
+            detected_text_with_median = segmenter.get_text_with_median()
+            goodreads_request(detected_text, detected_text_with_median)
+            # cv2.waitKey()
+    # for i in range(14, 122):
+    #     cv2.destroyAllWindows()
+    #     img = cv2.imread(SPINES_PATH + str(i) + '.jpg')
+    #     segmenter = TextSegmenter(img)
+    #     detected_text = segmenter.get_text()
+    #     detected_text_with_median = segmenter.get_text_with_median()
+    #     goodreads_request(detected_text, detected_text_with_median)
 
 
 def process_spine(filestr):
@@ -242,3 +266,28 @@ def process_spine(filestr):
         detected_text = segmenter.get_text()
         detected_text_with_median = segmenter.get_text_with_median()
         return goodreads_request(detected_text, detected_text_with_median)
+
+
+def process_spine_from_extractor(spine):
+    segmenter = TextSegmenter(spine)
+    detected_text = segmenter.get_text()
+    detected_text_with_median = segmenter.get_text_with_median()
+    if detected_text == "":
+        detected_text = detected_text_with_median
+    if detected_text_with_median == detected_text == "":
+        return {"error": "no text detected", 'txt':'', 'title':''}
+    return goodreads_request(detected_text_with_median, detected_text)
+
+# 4 8
+# 4 8
+# 5 6
+# 4 5
+# 1 6
+# 3 6
+# 4 6
+# 1 6
+# 1 7
+# 4 6
+# 0
+# 3 5
+# 4 6
