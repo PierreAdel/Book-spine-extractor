@@ -1,5 +1,5 @@
 from flask_restful import Resource, Api, reqparse
-from text_segmenter import process_spine
+from SpineClassifier.text_segmenter import process_spine
 import werkzeug
 from flask import Flask
 
