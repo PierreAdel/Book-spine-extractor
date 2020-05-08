@@ -14,6 +14,8 @@ SPINES_PATH = 'detected_spines/spine'
 # pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 img = None
+
+
 class BoundingBoxWrapper:
     def __init__(self, stats, img_shape):
         self.boxes = []
@@ -130,7 +132,6 @@ class TextSegmenter:
         self.gray_otsu = box_wrapper.get_mask(edges3, self.gray, self.image)
         # cv2.imshow("self.gray_otsu", self.gray_otsu)
 
-
     def get_edges(self, image):
         b = image[:, :, 0]
         g = image[:, :, 1]
@@ -156,7 +157,8 @@ class TextSegmenter:
 
     def get_text_with_median(self):
         config = '-c tessedit_char_whitelist=\ 01234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
-        text = pytesseract.image_to_string(cv2.bitwise_not(cv2.medianBlur(self.gray_otsu, 3)), lang='eng', config=config)
+        text = pytesseract.image_to_string(cv2.bitwise_not(cv2.medianBlur(self.gray_otsu, 3)), lang='eng',
+                                           config=config)
         return text
 
 
@@ -181,13 +183,7 @@ def thresh_edges(im):
                          cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
 
 
-# todo fix bounding boxes
-#   todo mawdoo3 el inner/ nesting
-# todo fix inverting the colors if necessary
-# todo check the mode of the pixel above the letter -- done
-# todo sort boxes by size before detecting if its inside another one -- done
-# todo idea: fill connected component -- cancelled
-# todo idea: increase contrast
+# todo mawdoo3 el inner/ nesting
 # todo combine boxes?
 # todo get average outside using dilation - real
 
@@ -195,6 +191,7 @@ from googlesearch import search
 from goodreads import client
 import re
 from dotenv import load_dotenv
+
 load_dotenv()
 import os
 
@@ -202,7 +199,7 @@ import os
 def goodreads_request(text, text2, last_trial=False):
     KEY = os.environ["goodreads_key"]
     gc = client.GoodreadsClient(KEY, "")
-    book_json = {'found' : False, "text": text}
+    book_json = {'found': False, "text": text}
     try:
         try:
             book = gc.search_books(text)[0]  # slows down performance heavily, limited to 1 request / sec
@@ -225,14 +222,14 @@ def goodreads_request(text, text2, last_trial=False):
             'author': book.authors[0].name,
             'average_rating': book.average_rating,
             'url': goodreads_url_prefix + book.gid,
-            'found' : True
+            'found': True
         }
         # print(book_json)
     except StopIteration:
         if last_trial:
             site = f'not found \nquery="{text}"'
             print(site)
-            return {"error": "no book found", 'txt':'text2', 'title':''}
+            return {"error": "no book found", 'txt': 'text2', 'title': ''}
         else:
             return goodreads_request(text2, text, True)
     return book_json
@@ -247,25 +244,17 @@ if __name__ == "__main__":
             detected_text = segmenter.get_text()
             detected_text_with_median = segmenter.get_text_with_median()
             goodreads_request(detected_text, detected_text_with_median)
-            # cv2.waitKey()
-    # for i in range(14, 122):
-    #     cv2.destroyAllWindows()
-    #     img = cv2.imread(SPINES_PATH + str(i) + '.jpg')
-    #     segmenter = TextSegmenter(img)
-    #     detected_text = segmenter.get_text()
-    #     detected_text_with_median = segmenter.get_text_with_median()
-    #     goodreads_request(detected_text, detected_text_with_median)
 
 
 def process_spine(filestr):
-        #convert string data to numpy array
-        npimg = np.fromstring(filestr, np.uint8)
-        # convert numpy array to image
-        img = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
-        segmenter = TextSegmenter(img)
-        detected_text = segmenter.get_text()
-        detected_text_with_median = segmenter.get_text_with_median()
-        return goodreads_request(detected_text, detected_text_with_median)
+    # convert string data to numpy array
+    npimg = np.fromstring(filestr, np.uint8)
+    # convert numpy array to image
+    img = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
+    segmenter = TextSegmenter(img)
+    detected_text = segmenter.get_text()
+    detected_text_with_median = segmenter.get_text_with_median()
+    return goodreads_request(detected_text, detected_text_with_median)
 
 
 def process_spine_from_extractor(spine):
@@ -275,19 +264,5 @@ def process_spine_from_extractor(spine):
     if detected_text == "":
         detected_text = detected_text_with_median
     if detected_text_with_median == detected_text == "":
-        return {"error": "no text detected", 'txt':'', 'title':''}
+        return {"error": "no text detected", 'txt': '', 'title': ''}
     return goodreads_request(detected_text_with_median, detected_text)
-
-# 4 8
-# 4 8
-# 5 6
-# 4 5
-# 1 6
-# 3 6
-# 4 6
-# 1 6
-# 1 7
-# 4 6
-# 0
-# 3 5
-# 4 6

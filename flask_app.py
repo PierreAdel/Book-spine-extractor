@@ -1,5 +1,6 @@
 from flask_restful import Resource, Api, reqparse
 from SpineClassifier.text_segmenter import process_spine
+from SpineClassifier.book_spine_extractor import SpineExtractor
 import werkzeug
 from flask import Flask
 
@@ -15,8 +16,16 @@ class SpineOCR(Resource):
         parse = reqparse.RequestParser()
         parse.add_argument('file', type=werkzeug.datastructures.FileStorage, location='files')
         args = parse.parse_args()
-        audioFile = args['file'].read()
-        return process_spine(audioFile)
+        image_file = args['file'].read()
+        return process_spine(image_file)
 
+class ShelfOCR(Resource):
+    def post(self):
+        parse = reqparse.RequestParser()
+        parse.add_argument('file', type=werkzeug.datastructures.FileStorage, location='files')
+        args = parse.parse_args()
+        image_file = args['file'].read()
+        return SpineExtractor.extract_spines_from_img_str(image_file)
 
 api.add_resource(SpineOCR, '/')
+api.add_resource(ShelfOCR, '/shelf/')

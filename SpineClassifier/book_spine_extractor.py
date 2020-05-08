@@ -3,11 +3,27 @@ import numpy as np
 import statistics
 import imutils
 import math
+from text_segmenter import process_spine_from_extractor
+
 SHELVES_PATH = 'images/shelves/'
 
 
 class SpineExtractor:
     x = 0
+
+    @staticmethod
+    def extract_spines_from_img_str(file_str):
+        # convert string data to numpy array
+        np_img = np.fromstring(file_str, np.uint8)
+        # convert numpy array to image
+        img = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
+        extractor = SpineExtractor(img)
+        extractor.extract()
+        books = []
+        for spine in extractor.spines:
+            book_json = process_spine_from_extractor(spine)
+            books.append(book_json)
+        pass
 
     def __init__(self, image):
         self.image = image
@@ -38,7 +54,7 @@ class SpineExtractor:
         for index in range(len(filtered_lines)):
             i = 0
             filtered_lines[index][-1] += filtered_lines[index][-1]
-            while index + i < len(filtered_lines) and filtered_lines[index + i][4] - filtered_lines[index][4] <= 15 :
+            while index + i < len(filtered_lines) and filtered_lines[index + i][4] - filtered_lines[index][4] <= 15:
                 filtered_lines[index][-1] += filtered_lines[index + i][-1]
                 filtered_lines[index + i][-1] += filtered_lines[index][-1]
                 i += 1
@@ -112,7 +128,6 @@ def resize_image(im):
 
 
 def rotate_image(image):
-
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     fld = cv2.ximgproc.createFastLineDetector()
     lines = fld.detect(gray)
@@ -120,28 +135,28 @@ def rotate_image(image):
     # in this piece of code we am trying to rotate the image so that the books are always as vertical
     # method: by filtering the taller lines which represent the length of a book while discarding the shorter lines which are letters or noise
     # then getting the median of the taller lines and their angle and rotate the image by this angle
-    #lengtharr = []
+    # lengtharr = []
     anglearr = []
     for i in range(len(lines)):
         for x1, y1, x2, y2 in lines[i]:
             length = int(math.sqrt(abs(x2 - x1) ** 2 + abs(y2 - y1) ** 2))
             # print(length)
-            #lengtharr.append(length)
+            # lengtharr.append(length)
             if length > gray.shape[0] / 5:
                 slope = (y2 - y1) / (x2 - x1)
                 angle = math.degrees(math.atan(slope))
                 anglearr.append(angle)
 
     ang_median = statistics.median(anglearr)
-    #print("The photo is tilted by: " + str(ang_median) + " degrees")
+    # print("The photo is tilted by: " + str(ang_median) + " degrees")
     if ang_median >= 0:
         rotation_angle = ang_median - 90
     else:
         rotation_angle = ang_median + 90
     image = imutils.rotate(image, rotation_angle)
 
-    #cv2.imshow("rotation", image)
-    #cv2.waitKey()
+    # cv2.imshow("rotation", image)
+    # cv2.waitKey()
     print("end rotation")
     print(ang_median)
     return image
