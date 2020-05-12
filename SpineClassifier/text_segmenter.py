@@ -266,5 +266,5 @@ def process_spine_from_extractor(spine):
     if detected_text == "":
         detected_text = detected_text_with_median
     if detected_text_with_median == detected_text == "":
-        return {"error": "no text detected", 'txt': '', 'title': ''}
+        return {"found": False, "error": "no text detected", 'txt': '', 'title': ''}
     return goodreads_request(detected_text_with_median, detected_text)
