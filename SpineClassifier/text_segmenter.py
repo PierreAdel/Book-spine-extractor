@@ -230,7 +230,8 @@ def goodreads_request(text, text2, last_trial=False):
         if last_trial:
             site = f'not found \nquery="{text}"'
             print(site)
-            return {"error": "no book found", 'txt': 'text2', 'title': ''}
+            return {"found": False, "error": "no book found",
+                    'txt': 'text2', 'title': ''}
         else:
             return goodreads_request(text2, text, True)
     return book_json
