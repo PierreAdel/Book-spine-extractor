@@ -23,8 +23,9 @@ class SpineExtractor:
         books = []
         for spine in extractor.spines:
             book_json = process_spine_from_extractor(spine)
+            print(book_json, flush=True)
             books.append(book_json)
-        pass
+        return books
 
     def __init__(self, image):
         self.image = image
