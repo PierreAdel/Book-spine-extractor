@@ -3,7 +3,8 @@ import numpy as np
 import statistics
 import imutils
 import math
-from text_segmenter import process_spine_from_extractor
+# from text_segmenter import process_spine_from_extractor
+from SpineClassifier.text_segmenter import process_spine_from_extractor
 
 SHELVES_PATH = 'images/shelves/'
 
