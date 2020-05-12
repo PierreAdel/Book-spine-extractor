@@ -22,13 +22,15 @@ class SpineOCR(Resource):
 
 class ShelfOCR(Resource):
     def get(self):
-        return json.loads('books.json')
+        with open('books.json', 'r') as outfile:
+            return json.load(outfile)
     def post(self):
         parse = reqparse.RequestParser()
         parse.add_argument('file', type=werkzeug.datastructures.FileStorage, location='files')
         args = parse.parse_args()
         image_file = args['file'].read()
-        json.dumps(SpineExtractor.extract_spines_from_img_str(image_file))
+        with open('books.json', 'w') as outfile:
+            json.dump(SpineExtractor.extract_spines_from_img_str(image_file), outfile)
 
 api.add_resource(SpineOCR, '/')
 api.add_resource(ShelfOCR, '/shelf/')
