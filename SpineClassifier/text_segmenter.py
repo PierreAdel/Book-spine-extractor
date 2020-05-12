@@ -215,21 +215,23 @@ def goodreads_request(text, text2, last_trial=False):
                                    num=1, pause=3))
             id = re.search("[0-9]+", site).group()
             book = gc.book(id)
-        book_json = {
-            'txt': text,
-            'txt2': text2,
-            'title': book.title,
-            'author': book.authors[0].name,
-            'average_rating': book.average_rating,
-            'url': goodreads_url_prefix + book.gid,
-            'found': True
-        }
+            book_json = {
+                'txt': text,
+                'txt2': text2,
+                'title': book.title,
+                'author': book.authors[0].name,
+                'average_rating': book.average_rating,
+                'url': goodreads_url_prefix + book.gid,
+                'summary': book.description,
+                'found': True
+            }
         # print(book_json)
     except StopIteration:
         if last_trial:
             site = f'not found \nquery="{text}"'
             print(site)
-            return {"error": "no book found", 'txt': 'text2', 'title': ''}
+            return {"found": False, "error": "no book found",
+                    'txt': 'text2', 'title': ''}
         else:
             return goodreads_request(text2, text, True)
     return book_json
@@ -264,5 +266,5 @@ def process_spine_from_extractor(spine):
     if detected_text == "":
         detected_text = detected_text_with_median
     if detected_text_with_median == detected_text == "":
-        return {"error": "no text detected", 'txt': '', 'title': ''}
+        return {"found": False, "error": "no text detected", 'txt': '', 'title': ''}
     return goodreads_request(detected_text_with_median, detected_text)
