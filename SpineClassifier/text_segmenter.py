@@ -11,7 +11,7 @@ NORMAL_TEXT_PATH = IMAGE_PATH + 'normal_text/'
 SHELVES_PATH = IMAGE_PATH + 'normal_text/'
 # SPINES_PATH = IMAGE_PATH + 'spines/'
 SPINES_PATH = 'detected_spines/spine'
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 img = None
 

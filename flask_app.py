@@ -22,8 +22,12 @@ class SpineOCR(Resource):
 
 class ShelfOCR(Resource):
     def get(self):
-        with open('books.json', 'r') as outfile:
-            return json.load(outfile)
+        try:
+            with open('books.json', 'r') as outfile:
+                return json.load(outfile)
+        except:
+            with open('books_stub.json', 'r') as outfile:
+                return json.load(outfile)
     def post(self):
         parse = reqparse.RequestParser()
         parse.add_argument('file', type=werkzeug.datastructures.FileStorage, location='files')
